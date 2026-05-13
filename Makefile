@@ -1,4 +1,4 @@
-.PHONY: build run stop restart logs seed seed-docker test test-cov docs docs-docker clean
+.PHONY: build run stop restart logs seed seed-docker test test-docker test-cov test-cov-docker docs docs-docker clean
 
 IMAGE_NAME = goit-fast-api
 CONTAINER_NAME = app-fast-api
@@ -26,13 +26,19 @@ seed-docker:    ## Insert test contacts in Docker
 	docker compose exec web python -m src.database.seed
 
 test:           ## Run pytest suite
-	pytest
+	python -m pytest
+
+test-docker:    ## Run pytest suite inside the web container
+	docker compose exec -T web python -m pytest
 
 test-cov:       ## Run pytest suite with coverage report
-	pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75
+	python -m pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75
+
+test-cov-docker: ## Run pytest suite with coverage report inside the web container
+	docker compose exec -T web python -m pytest --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=75
 
 docs:           ## Build Sphinx documentation
-	sphinx-build -b html docs docs/_build/html
+	python -m sphinx -b html docs docs/_build/html
 
 docs-docker:    ## Build Sphinx documentation inside the web container
 	docker compose exec -T web sphinx-build -b html docs docs/_build/html
