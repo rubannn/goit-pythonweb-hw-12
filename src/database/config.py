@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
 
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    REDIS_PASSWORD: str | None = None
+    REDIS_USER_CACHE_TTL: int = 300
+
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
@@ -29,9 +35,11 @@ class Settings(BaseSettings):
     MAIL_SSL_TLS: bool = False
     MAIL_SUPPRESS_SEND: bool = True
     EMAIL_VERIFICATION_TOKEN_EXPIRE_SECONDS: int = 3600
+    PASSWORD_RESET_TOKEN_EXPIRE_SECONDS: int = 3600
 
     BACKEND_BASE_URL: str = "http://localhost:8000"
     FRONTEND_BASE_URL: str = "http://localhost:3000"
+    PASSWORD_RESET_PAGE_URL: str = "http://localhost:3000/reset-password"
     CORS_ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
     RATE_LIMIT_ME: str = "5/minute"
 
@@ -62,6 +70,13 @@ class Settings(BaseSettings):
             f"{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:"
             f"{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
+
+    @property
+    def REDIS_URL(self) -> str:
+        auth_part = ""
+        if self.REDIS_PASSWORD:
+            auth_part = f":{self.REDIS_PASSWORD}@"
+        return f"redis://{auth_part}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
 
 settings = Settings()
