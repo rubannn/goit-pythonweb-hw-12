@@ -1,29 +1,35 @@
 # Contacts API
 
-REST API for managing personal contacts built with `FastAPI`, `SQLAlchemy`, and `PostgreSQL`.
+REST API for managing personal contacts built with `FastAPI`, `SQLAlchemy`, `PostgreSQL`, and `Redis`.
 
 ## Features
 
 - User registration and login
-- Password hashing
-- JWT authentication with `access_token`
-- Access to contacts only for authenticated users
-- Contact isolation by owner
+- Password hashing with JWT authentication
 - Email verification with resend flow
+- Password reset flow with signed expiring tokens
+- Role-based access with `user` and `admin`
+- Redis caching for `get_current_user`
+- Contact isolation by owner
+- Contact search and upcoming birthdays
 - Rate limiting for `GET /api/users/me`
-- CORS configuration from `.env`
-- User avatar upload via Cloudinary
-- Swagger documentation
-- Docker Compose setup with PostgreSQL and PgAdmin
+- Admin-only avatar upload through Cloudinary
+- Sphinx documentation
+- Unit and integration tests with `pytest`
+- Coverage check with `pytest-cov`
+- Docker Compose setup with PostgreSQL, Redis, and PgAdmin
 
 ## Tech Stack
 
 - `FastAPI`
 - `SQLAlchemy 2.0`
 - `PostgreSQL`
+- `Redis`
 - `Pydantic`
 - `slowapi`
 - `Cloudinary`
+- `pytest`
+- `Sphinx`
 
 ## Project Structure
 
@@ -34,22 +40,32 @@ src/
   database/    # Settings, DB session, seed
   models/      # SQLAlchemy models
   schemas/     # Pydantic schemas
-  services/    # Auth, email, rate limit, Cloudinary
+  services/    # Auth, cache, email, rate limit, Cloudinary
+tests/
+  unit/        # Unit tests
+  integration/ # Integration tests
+docs/          # Sphinx documentation
 ```
 
 ## Environment Variables
 
 Create `.env` from `.env.example`.
 
-Required core variables:
+All sensitive settings must stay in `.env` and must not be hardcoded in the repository.
 
 ```env
 APP_NAME=Contacts API
 POSTGRES_DB=contacts_db
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
-POSTGRES_HOST=localhost
+POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
+
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_DB=0
+REDIS_PASSWORD=
+REDIS_USER_CACHE_TTL=300
 
 JWT_SECRET_KEY=change-me-super-secret-key
 JWT_ALGORITHM=HS256
@@ -64,8 +80,11 @@ MAIL_STARTTLS=true
 MAIL_SSL_TLS=false
 MAIL_SUPPRESS_SEND=true
 EMAIL_VERIFICATION_TOKEN_EXPIRE_SECONDS=3600
+PASSWORD_RESET_TOKEN_EXPIRE_SECONDS=3600
+
 BACKEND_BASE_URL=http://localhost:8000
 FRONTEND_BASE_URL=http://localhost:3000
+PASSWORD_RESET_PAGE_URL=http://localhost:3000/reset-password
 
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 RATE_LIMIT_ME=5/minute
@@ -77,8 +96,8 @@ CLOUDINARY_API_SECRET=
 
 Notes:
 
-- `MAIL_SUPPRESS_SEND=true` is convenient for local development. In this mode the verification link is printed to application logs instead of being sent by SMTP.
-- `RATE_LIMIT_ME` accepts values like `5/minute`, `10/minute`, `2/second`.
+- `MAIL_SUPPRESS_SEND=true` prints verification and reset links to logs instead of sending SMTP email.
+- `REDIS_USER_CACHE_TTL` controls how long the cached current user stays in Redis.
 - If Cloudinary variables are empty, avatar upload returns `503 Cloudinary is not configured`.
 
 ## Run with Docker Compose
@@ -92,7 +111,7 @@ make build
 This command:
 
 - builds the `web` image
-- starts `web`, `postgres`, and `pgadmin`
+- starts `web`, `postgres`, `redis`, and `pgadmin`
 - runs the seed script
 
 Useful commands:
@@ -105,7 +124,7 @@ make logs
 make seed-docker
 ```
 
-If you previously ran an older database schema, recreate volumes before testing the final version:
+If you need a fresh database:
 
 ```bash
 docker compose down -v
@@ -125,6 +144,40 @@ Seed data locally:
 python -m src.database.seed
 ```
 
+## Testing
+
+Local:
+
+```bash
+make test
+make test-cov
+```
+
+Docker:
+
+```bash
+make test-docker
+make test-cov-docker
+```
+
+The coverage command enforces a minimum threshold of `75%`.
+
+## Documentation
+
+Local:
+
+```bash
+make docs
+```
+
+Docker:
+
+```bash
+make docs-docker
+```
+
+Generated HTML is written to `docs/_build/html`.
+
 ## Available Services
 
 - API docs: `http://127.0.0.1:8000/docs`
@@ -136,13 +189,11 @@ PgAdmin credentials:
 - email: `admin@example.com`
 - password: `admin123`
 
-## Authentication Flow
+## Authentication and Roles
 
-### 1. Register
+### Register
 
 `POST /api/auth/register`
-
-Example body:
 
 ```json
 {
@@ -152,27 +203,17 @@ Example body:
 }
 ```
 
-Behavior:
+### Verify Email
 
-- returns `201 Created` on success
-- returns `409 Conflict` if email already exists
-- stores password as hash
+`GET /api/auth/verify-email/{token}`
 
-### 2. Verify Email
+If `MAIL_SUPPRESS_SEND=true`, copy the verification link from application logs.
 
-If `MAIL_SUPPRESS_SEND=true`, open application logs and copy the verification link printed after registration.
-
-You can also request another verification email:
+Resend verification:
 
 `POST /api/auth/request-email`
 
-```json
-{
-  "email": "test@example.com"
-}
-```
-
-### 3. Login
+### Login
 
 `POST /api/auth/login`
 
@@ -183,20 +224,35 @@ You can also request another verification email:
 }
 ```
 
-Response:
+### Password Reset
+
+Request reset link:
+
+`POST /api/auth/request-password-reset`
 
 ```json
 {
-  "access_token": "jwt-token",
-  "token_type": "bearer"
+  "email": "test@example.com"
 }
 ```
 
-### 4. Authorize in Swagger
+Confirm reset:
 
-- open `/docs`
-- click `Authorize`
-- paste only the `access_token`
+`POST /api/auth/reset-password`
+
+```json
+{
+  "token": "reset-token",
+  "new_password": "newsecret123"
+}
+```
+
+If `MAIL_SUPPRESS_SEND=true`, the reset link is printed to logs.
+
+### Roles
+
+- New users are created with role `user`
+- Only users with role `admin` can update their avatar through `PATCH /api/users/avatar`
 
 ## Main API Endpoints
 
@@ -206,6 +262,8 @@ Response:
 - `POST /api/auth/login`
 - `GET /api/auth/verify-email/{token}`
 - `POST /api/auth/request-email`
+- `POST /api/auth/request-password-reset`
+- `POST /api/auth/reset-password`
 
 ### Users
 
@@ -220,49 +278,47 @@ Response:
 - `PUT /api/contacts/{contact_id}`
 - `DELETE /api/contacts/{contact_id}`
 - `GET /api/contacts/upcoming-birthdays`
-- `GET /api/contacts/?first_name=...`
-- `GET /api/contacts/?last_name=...`
-- `GET /api/contacts/?email=...`
 
-## Avatar Upload
+## Redis Caching
 
-Use `PATCH /api/users/avatar` with multipart form-data field `file`.
+The current user is cached in Redis during authentication flow. `get_current_user` first checks Redis and only hits the database on cache miss. Cache is refreshed or invalidated after:
 
-Example with `curl`:
+- successful login
+- email verification
+- avatar update
+- password reset
 
-```bash
-curl -X PATCH "http://127.0.0.1:8000/api/users/avatar" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -F "file=@/path/to/avatar.jpg"
-```
-
-You can also test it from Swagger UI.
+If Redis is unavailable, authentication falls back to the database.
 
 ## Seed Data
 
 Seed script:
 
-- [src/database/seed.py](D:\Python\GoIT\goit-pythonweb-hw-10\src\database\seed.py)
+- [src/database/seed.py](/d:/Python/GoIT/goit-pythonweb-hw-12/src/database/seed.py)
 
-Default seeded user:
+Default seeded users:
 
-- email: `seed.user@example.com`
-- password: `seedpassword123`
+- user email: `seed.user@example.com`
+- user password: `seedpassword123`
+- admin email: `seed.admin@example.com`
+- admin password: `seedadmin123`
 
-Seeded contacts belong to the seeded user.
+Seeded contacts belong to the seeded regular user.
 
 ## Verification Notes
 
 What was verified in code:
 
-- syntax compilation with `python -m compileall src`
+- syntax compilation with `python -m compileall src tests`
+- unit and integration tests with `pytest`
 - Docker-oriented configuration via `.env` and `docker-compose.yml`
 
-What to verify after startup:
+Recommended final checks after startup:
 
 1. Register a new user.
-2. Confirm email through verification link.
+2. Confirm email through the verification link.
 3. Login and get `access_token`.
 4. Call `GET /api/users/me`.
-5. Create contacts and confirm isolation between users.
-6. Upload avatar and confirm `avatar_url` is returned.
+5. Request and complete a password reset.
+6. Create contacts and confirm isolation between users.
+7. Login as admin and upload an avatar.
