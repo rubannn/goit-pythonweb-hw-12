@@ -1,3 +1,5 @@
+"""Avatar upload helpers built on top of Cloudinary."""
+
 import cloudinary
 import cloudinary.uploader
 from fastapi import HTTPException, status
@@ -15,6 +17,7 @@ ALLOWED_AVATAR_CONTENT_TYPES = {
 
 
 def _ensure_cloudinary_configured() -> None:
+    """Raise an HTTP error when Cloudinary credentials are missing."""
     if not all(
         [
             settings.CLOUDINARY_CLOUD_NAME,
@@ -29,6 +32,7 @@ def _ensure_cloudinary_configured() -> None:
 
 
 def _configure_cloudinary() -> None:
+    """Apply Cloudinary runtime configuration from application settings."""
     cloudinary.config(
         cloud_name=settings.CLOUDINARY_CLOUD_NAME,
         api_key=settings.CLOUDINARY_API_KEY,
@@ -38,6 +42,7 @@ def _configure_cloudinary() -> None:
 
 
 def _validate_avatar_file_type(file: UploadFile) -> None:
+    """Ensure the uploaded avatar has an allowed image MIME type."""
     if file.content_type not in ALLOWED_AVATAR_CONTENT_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -46,6 +51,7 @@ def _validate_avatar_file_type(file: UploadFile) -> None:
 
 
 async def upload_avatar(file: UploadFile, user_id: int) -> str:
+    """Upload an avatar image to Cloudinary and return its public URL."""
     _ensure_cloudinary_configured()
     _configure_cloudinary()
     _validate_avatar_file_type(file)

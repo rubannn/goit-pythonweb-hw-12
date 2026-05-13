@@ -1,7 +1,10 @@
+"""Application settings loaded from environment variables."""
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """Typed configuration container for the application."""
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -49,6 +52,7 @@ class Settings(BaseSettings):
 
     @property
     def cors_allowed_origins_list(self) -> list[str]:
+        """Parse the comma-separated CORS origins string into a list."""
         return [
             item.strip()
             for item in self.CORS_ALLOWED_ORIGINS.split(",")
@@ -57,6 +61,7 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
+        """Build the synchronous PostgreSQL connection URL."""
         return (
             f"postgresql+psycopg2://{self.POSTGRES_USER}:"
             f"{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:"
@@ -65,6 +70,7 @@ class Settings(BaseSettings):
 
     @property
     def ASYNC_DATABASE_URL(self) -> str:
+        """Build the asynchronous PostgreSQL connection URL."""
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:"
             f"{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:"
@@ -73,6 +79,7 @@ class Settings(BaseSettings):
 
     @property
     def REDIS_URL(self) -> str:
+        """Build the Redis connection URL with optional password auth."""
         auth_part = ""
         if self.REDIS_PASSWORD:
             auth_part = f":{self.REDIS_PASSWORD}@"

@@ -1,3 +1,5 @@
+"""Application entry point and FastAPI bootstrap."""
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -17,6 +19,7 @@ from src.services.rate_limiter import limiter
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Create database tables on startup and release shared resources on shutdown."""
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
 
@@ -45,6 +48,7 @@ app.add_middleware(
 
 @app.get("/", tags=["healthcheck"])
 def read_root() -> dict[str, str]:
+    """Return a simple healthcheck message for the root endpoint."""
     return {"message": "Contacts API is running"}
 
 

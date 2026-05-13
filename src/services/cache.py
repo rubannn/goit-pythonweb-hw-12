@@ -1,3 +1,5 @@
+"""Redis-backed caching helpers for frequently accessed user data."""
+
 import json
 from datetime import datetime
 from typing import Any
@@ -13,22 +15,26 @@ _redis_client: Redis | None = None
 
 
 def _serialize_datetime(value: datetime | None) -> str | None:
+    """Convert a datetime value into an ISO 8601 string for JSON storage."""
     if value is None:
         return None
     return value.isoformat()
 
 
 def _deserialize_datetime(value: str | None) -> datetime | None:
+    """Convert an ISO 8601 string back into a datetime instance."""
     if value is None:
         return None
     return datetime.fromisoformat(value)
 
 
 def _user_cache_key(email: str) -> str:
+    """Build the Redis key used to cache a user by email address."""
     return f"user:{email.lower()}"
 
 
 def get_redis_client() -> Redis:
+    """Return a shared async Redis client instance."""
     global _redis_client
 
     if _redis_client is None:
@@ -42,6 +48,7 @@ def get_redis_client() -> Redis:
 
 
 async def close_redis_client() -> None:
+    """Close the shared Redis client if it has been initialized."""
     global _redis_client
 
     if _redis_client is None:
@@ -52,6 +59,7 @@ async def close_redis_client() -> None:
 
 
 def _user_to_cache_payload(user: User) -> dict[str, Any]:
+    """Serialize a user ORM object into a JSON-friendly cache payload."""
     return {
         "id": user.id,
         "username": user.username,
@@ -66,6 +74,7 @@ def _user_to_cache_payload(user: User) -> dict[str, Any]:
 
 
 def _user_from_cache_payload(payload: dict[str, Any]) -> User:
+    """Reconstruct a lightweight user ORM object from cached data."""
     return User(
         id=payload["id"],
         username=payload["username"],
@@ -80,6 +89,7 @@ def _user_from_cache_payload(payload: dict[str, Any]) -> User:
 
 
 async def get_cached_user(email: str) -> User | None:
+    """Fetch a cached user by email or return ``None`` on miss/failure."""
     try:
         cached_value = await get_redis_client().get(_user_cache_key(email))
     except (RedisError, OSError):
@@ -97,6 +107,7 @@ async def get_cached_user(email: str) -> User | None:
 
 
 async def set_cached_user(user: User) -> None:
+    """Store a user snapshot in Redis using the configured TTL."""
     try:
         await get_redis_client().setex(
             _user_cache_key(user.email),
@@ -108,6 +119,7 @@ async def set_cached_user(user: User) -> None:
 
 
 async def invalidate_user_cache(email: str) -> None:
+    """Remove a user's cached snapshot from Redis."""
     try:
         await get_redis_client().delete(_user_cache_key(email))
     except (RedisError, OSError):

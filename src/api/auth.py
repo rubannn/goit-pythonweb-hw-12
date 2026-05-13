@@ -1,3 +1,5 @@
+"""Authentication and account lifecycle endpoints."""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,6 +39,7 @@ async def register_user(
     body: UserCreate,
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
+    """Register a new user account and trigger email verification."""
     existing_user = await get_user_by_email(db, body.email)
     if existing_user is not None:
         raise HTTPException(
@@ -54,6 +57,7 @@ async def login_user(
     body: UserLogin,
     db: AsyncSession = Depends(get_db),
 ) -> TokenModel:
+    """Authenticate a verified user and issue an access token."""
     user = await authenticate_user(db, body.email, body.password)
     if user is None:
         raise HTTPException(
@@ -79,6 +83,7 @@ async def verify_email(
     token: str,
     db: AsyncSession = Depends(get_db),
 ) -> MessageResponse:
+    """Confirm a user's email address using the verification token."""
     try:
         email = get_email_from_token(token)
     except ValueError as exc:
@@ -108,6 +113,7 @@ async def request_email_verification(
     body: RequestEmail,
     db: AsyncSession = Depends(get_db),
 ) -> MessageResponse:
+    """Resend an email verification message for an existing unverified user."""
     user = await get_user_by_email(db, body.email)
     if user is None:
         raise HTTPException(
@@ -127,6 +133,7 @@ async def request_password_reset(
     body: PasswordResetRequest,
     db: AsyncSession = Depends(get_db),
 ) -> MessageResponse:
+    """Send a password reset link without exposing whether the email exists."""
     user = await get_user_by_email(db, body.email)
     if user is not None:
         await send_password_reset_email(user.email, user.username)
@@ -141,6 +148,7 @@ async def reset_password(
     body: PasswordResetConfirm,
     db: AsyncSession = Depends(get_db),
 ) -> MessageResponse:
+    """Validate a password reset token and store the new password hash."""
     try:
         email = get_email_from_password_reset_token(body.token)
     except ValueError as exc:

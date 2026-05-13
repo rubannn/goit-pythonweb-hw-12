@@ -1,3 +1,5 @@
+"""Database engine, base model, and session helpers."""
+
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -7,6 +9,7 @@ from src.database.config import settings
 
 
 class Base(DeclarativeBase):
+    """Base SQLAlchemy declarative class for all ORM models."""
     pass
 
 
@@ -21,6 +24,7 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Yield an async database session for a request and close it afterwards."""
     db = AsyncSessionLocal()
     try:
         yield db

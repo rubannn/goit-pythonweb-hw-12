@@ -1,3 +1,5 @@
+"""Authentication helpers and authorization dependencies."""
+
 from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends, HTTPException, status
@@ -19,6 +21,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a plain-text password against a stored hash."""
     try:
         return pwd_context.verify(plain_password, hashed_password)
     except UnknownHashError:
@@ -26,10 +29,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def get_password_hash(password: str) -> str:
+    """Create a password hash for secure storage."""
     return pwd_context.hash(password)
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    """Create a signed JWT access token with an expiration timestamp."""
     to_encode = data.copy()
     expire = datetime.now(UTC) + (
         expires_delta or timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -45,6 +50,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
 async def authenticate_user(
     db: AsyncSession, email: str, password: str
 ) -> User | None:
+    """Return the user when credentials are valid, otherwise ``None``."""
     user = await get_user_by_email(db, email)
     if user is None or not verify_password(password, user.hashed_password):
         return None
@@ -55,6 +61,7 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    """Resolve the current user from JWT credentials using Redis-backed caching."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -91,6 +98,7 @@ async def get_current_user(
 async def get_current_admin(
     current_user: User = Depends(get_current_user),
 ) -> User:
+    """Ensure the current user has the administrator role."""
     if current_user.role != UserRole.ADMIN.value:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

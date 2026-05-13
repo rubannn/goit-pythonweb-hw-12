@@ -1,3 +1,5 @@
+"""User profile endpoints."""
+
 from fastapi import APIRouter, Depends, File, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +23,7 @@ async def read_users_me(
     request: Request,
     current_user: User = Depends(get_current_user),
 ) -> UserResponse:
+    """Return the currently authenticated user's profile."""
     _ = request
     return UserResponse.model_validate(current_user)
 
@@ -31,6 +34,7 @@ async def update_user_avatar(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin),
 ) -> UserResponse:
+    """Upload a new avatar for the current administrator."""
     avatar_url = await upload_avatar(file, current_user.id)
     user = await update_avatar_url(
         db=db,

@@ -1,3 +1,5 @@
+"""Email and token helpers for verification and password reset flows."""
+
 from email.message import EmailMessage
 
 import aiosmtplib
@@ -6,6 +8,7 @@ from src.database.config import settings
 
 
 def _create_token(email: str, salt: str) -> str:
+    """Create a signed token for the provided email and logical salt."""
     from itsdangerous import URLSafeTimedSerializer
 
     serializer = URLSafeTimedSerializer(settings.JWT_SECRET_KEY)
@@ -13,6 +16,7 @@ def _create_token(email: str, salt: str) -> str:
 
 
 def _get_email_from_token(token: str, salt: str, max_age: int, expired_message: str) -> str:
+    """Decode a signed token and return the embedded email address."""
     from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
     serializer = URLSafeTimedSerializer(settings.JWT_SECRET_KEY)
@@ -29,10 +33,12 @@ def _get_email_from_token(token: str, salt: str, max_age: int, expired_message: 
 
 
 def create_email_token(email: str) -> str:
+    """Create an email verification token."""
     return _create_token(email, salt="email-confirm")
 
 
 def get_email_from_token(token: str) -> str:
+    """Decode an email verification token into the user email."""
     try:
         return _get_email_from_token(
             token,
@@ -47,10 +53,12 @@ def get_email_from_token(token: str) -> str:
 
 
 def create_password_reset_token(email: str) -> str:
+    """Create a password reset token."""
     return _create_token(email, salt="password-reset")
 
 
 def get_email_from_password_reset_token(token: str) -> str:
+    """Decode a password reset token into the user email."""
     try:
         return _get_email_from_token(
             token,
@@ -65,6 +73,7 @@ def get_email_from_password_reset_token(token: str) -> str:
 
 
 async def send_verification_email(email: str, username: str) -> None:
+    """Send or log an email verification link for the target user."""
     token = create_email_token(email)
     verification_link = f"{settings.BACKEND_BASE_URL}/api/auth/verify-email/{token}"
 
@@ -96,6 +105,7 @@ async def send_verification_email(email: str, username: str) -> None:
 
 
 async def send_password_reset_email(email: str, username: str) -> None:
+    """Send or log a password reset link for the target user."""
     token = create_password_reset_token(email)
     reset_link = f"{settings.PASSWORD_RESET_PAGE_URL}?token={token}"
 

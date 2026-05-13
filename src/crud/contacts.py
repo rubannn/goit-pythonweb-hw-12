@@ -1,3 +1,5 @@
+"""Database access helpers for contact records."""
+
 from datetime import date, timedelta
 from typing import cast
 
@@ -10,6 +12,7 @@ from src.schemas.contact import ContactCreate, ContactUpdate
 
 
 def _get_next_birthday_date(birthday: date, current_date: date) -> date:
+    """Calculate the next calendar occurrence of a contact's birthday."""
     try:
         next_birthday = birthday.replace(year=current_date.year)
     except ValueError:
@@ -29,6 +32,7 @@ async def create_contact(
     body: ContactCreate,
     owner: User,
 ) -> Contact:
+    """Create and persist a new contact for the provided owner."""
     contact = Contact(**body.model_dump(), owner_id=owner.id)
     db.add(contact)
     await db.commit()
@@ -37,6 +41,7 @@ async def create_contact(
 
 
 async def get_contacts(db: AsyncSession, owner: User) -> list[Contact]:
+    """Return all contacts belonging to the provided owner."""
     result = await db.execute(select(Contact).where(Contact.owner_id == owner.id))
     return list(result.scalars().all())
 
@@ -48,6 +53,7 @@ async def search_contacts(
     last_name: str | None = None,
     email: str | None = None,
 ) -> list[Contact]:
+    """Search owner contacts by partial first name, last name, or email."""
     filters = []
     if first_name:
         filters.append(Contact.first_name.ilike(f"%{first_name}%"))
@@ -69,6 +75,7 @@ async def get_contact_by_id(
     contact_id: int,
     owner: User,
 ) -> Contact | None:
+    """Return one owner contact by identifier or ``None`` if missing."""
     result = await db.execute(
         select(Contact).where(
             Contact.id == contact_id,
@@ -84,6 +91,7 @@ async def update_contact(
     body: ContactUpdate,
     owner: User,
 ) -> Contact | None:
+    """Update selected contact fields for an owner-scoped record."""
     contact = await get_contact_by_id(db, contact_id, owner)
 
     if contact is None:
@@ -103,6 +111,7 @@ async def delete_contact(
     contact_id: int,
     owner: User,
 ) -> Contact | None:
+    """Delete an owner-scoped contact and return the deleted entity."""
     contact = await get_contact_by_id(db, contact_id, owner)
 
     if contact is None:
@@ -118,6 +127,7 @@ async def get_upcoming_birthdays(
     owner: User,
     days: int = 7,
 ) -> list[Contact]:
+    """Return owner contacts with birthdays occurring within the next ``days``."""
     today = date.today()
     end_date = today + timedelta(days=days)
     result = await db.execute(select(Contact).where(Contact.owner_id == owner.id))

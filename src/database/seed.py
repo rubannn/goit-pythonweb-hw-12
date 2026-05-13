@@ -1,3 +1,5 @@
+"""Database seed utilities for local and Docker development."""
+
 from datetime import date
 
 from sqlalchemy import select
@@ -16,6 +18,7 @@ SEED_ADMIN_PASSWORD = "seedadmin123"
 
 
 async def seed_contacts() -> None:
+    """Create seed users and sample contacts if they are not present yet."""
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
 

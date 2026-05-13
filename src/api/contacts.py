@@ -1,3 +1,5 @@
+"""Contact management API endpoints."""
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,10 +22,12 @@ router = APIRouter(prefix="/contacts", tags=["contacts"])
 
 
 def to_contact_response(contact: Contact) -> ContactResponse:
+    """Convert a contact ORM instance into an API response schema."""
     return ContactResponse.model_validate(contact)
 
 
 def to_contact_response_list(contacts: list[Contact]) -> list[ContactResponse]:
+    """Convert a list of contact ORM instances into response schemas."""
     return [ContactResponse.model_validate(contact) for contact in contacts]
 
 
@@ -33,6 +37,7 @@ async def create_contact_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ContactResponse:
+    """Create a contact owned by the authenticated user."""
     contact = await create_contact(db, body, current_user)
     return to_contact_response(contact)
 
@@ -45,6 +50,7 @@ async def get_contacts_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[ContactResponse]:
+    """List all user contacts or filter them by the provided search fields."""
     if first_name or last_name or email:
         contacts = await search_contacts(
             db,
@@ -64,6 +70,7 @@ async def get_upcoming_birthdays_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[ContactResponse]:
+    """Return contacts whose birthdays fall within the next configured window."""
     contacts = await get_upcoming_birthdays(db, current_user)
     return to_contact_response_list(contacts)
 
@@ -74,6 +81,7 @@ async def get_contact_by_id_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ContactResponse:
+    """Fetch one contact by identifier for the authenticated owner."""
     contact = await get_contact_by_id(db, contact_id, current_user)
 
     if contact is None:
@@ -92,6 +100,7 @@ async def update_contact_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ContactResponse:
+    """Update an existing contact owned by the authenticated user."""
     contact = await update_contact(db, contact_id, body, current_user)
 
     if contact is None:
@@ -109,6 +118,7 @@ async def delete_contact_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ContactResponse:
+    """Delete a contact owned by the authenticated user."""
     contact = await delete_contact(db, contact_id, current_user)
 
     if contact is None:

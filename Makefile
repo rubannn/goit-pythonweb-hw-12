@@ -1,4 +1,4 @@
-.PHONY: build run stop restart logs seed seed-docker test test-cov docs clean
+.PHONY: build run stop restart logs seed seed-docker test test-cov docs docs-docker clean
 
 IMAGE_NAME = goit-fast-api
 CONTAINER_NAME = app-fast-api
@@ -33,6 +33,9 @@ test-cov:       ## Run pytest suite with coverage report
 
 docs:           ## Build Sphinx documentation
 	sphinx-build -b html docs docs/_build/html
+
+docs-docker:    ## Build Sphinx documentation inside the web container
+	docker compose exec -T web sphinx-build -b html docs docs/_build/html
 
 clean:          ## Stop and remove containers, images, volumes, networks
 	docker compose down --volumes --rmi local

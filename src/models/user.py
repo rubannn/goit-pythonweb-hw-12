@@ -1,3 +1,5 @@
+"""User ORM model and role definitions."""
+
 from enum import StrEnum
 
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, func
@@ -7,11 +9,13 @@ from src.database.db import Base
 
 
 class UserRole(StrEnum):
+    """Available application roles for authorization checks."""
     USER = "user"
     ADMIN = "admin"
 
 
 class User(Base):
+    """Persisted user account entity."""
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)

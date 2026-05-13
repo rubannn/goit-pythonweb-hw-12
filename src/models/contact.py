@@ -1,3 +1,5 @@
+"""Contact ORM model."""
+
 from sqlalchemy import Column, Date, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
@@ -5,6 +7,7 @@ from src.database.db import Base
 
 
 class Contact(Base):
+    """Persisted contact entry owned by a user."""
     __tablename__ = "contacts"
 
     id = Column(Integer, primary_key=True, index=True)
