@@ -6,7 +6,7 @@ from src.database.config import settings
 from src.database.db import get_db
 from src.models.user import User
 from src.schemas.user import UserResponse
-from src.services.auth import get_current_user
+from src.services.auth import get_current_admin, get_current_user
 from src.services.cloudinary_service import upload_avatar
 from src.services.rate_limiter import limiter
 
@@ -28,7 +28,7 @@ async def read_users_me(
 async def update_user_avatar(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_admin),
 ) -> UserResponse:
     avatar_url = await upload_avatar(file, current_user.id)
     user = await update_avatar_url(

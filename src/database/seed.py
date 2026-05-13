@@ -4,12 +4,15 @@ from sqlalchemy import select
 
 from src.database.db import AsyncSessionLocal, Base, engine
 from src.models import User
+from src.models.user import UserRole
 from src.models.contact import Contact
 from src.services.auth import get_password_hash
 
 
 SEED_USER_EMAIL = "seed.user@example.com"
 SEED_USER_PASSWORD = "seedpassword123"
+SEED_ADMIN_EMAIL = "seed.admin@example.com"
+SEED_ADMIN_PASSWORD = "seedadmin123"
 
 
 async def seed_contacts() -> None:
@@ -17,6 +20,20 @@ async def seed_contacts() -> None:
         await connection.run_sync(Base.metadata.create_all)
 
     async with AsyncSessionLocal() as session:
+        admin_result = await session.execute(select(User).where(User.email == SEED_ADMIN_EMAIL))
+        seed_admin = admin_result.scalar_one_or_none()
+
+        if seed_admin is None:
+            seed_admin = User(
+                username="seed-admin",
+                email=SEED_ADMIN_EMAIL,
+                hashed_password=get_password_hash(SEED_ADMIN_PASSWORD),
+                role=UserRole.ADMIN.value,
+                is_verified=True,
+            )
+            session.add(seed_admin)
+            await session.flush()
+
         user_result = await session.execute(select(User).where(User.email == SEED_USER_EMAIL))
         seed_user = user_result.scalar_one_or_none()
 
@@ -25,6 +42,7 @@ async def seed_contacts() -> None:
                 username="seed-user",
                 email=SEED_USER_EMAIL,
                 hashed_password=get_password_hash(SEED_USER_PASSWORD),
+                role=UserRole.USER.value,
                 is_verified=True,
             )
             session.add(seed_user)

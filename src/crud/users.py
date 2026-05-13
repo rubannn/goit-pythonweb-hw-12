@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.user import User
+from src.models.user import User, UserRole
 from src.schemas.user import UserCreate
 
 
@@ -19,6 +19,7 @@ async def create_user(
         username=body.username,
         email=body.email,
         hashed_password=hashed_password,
+        role=UserRole.USER.value,
     )
     db.add(user)
     await db.commit()

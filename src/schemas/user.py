@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from src.models.user import UserRole
+
 
 class UserBase(BaseModel):
     username: str = Field(min_length=1, max_length=50)
@@ -17,6 +19,7 @@ class UserLogin(BaseModel):
 
 class UserResponse(UserBase):
     id: int
+    role: UserRole
     is_verified: bool
     avatar_url: str | None = None
 
