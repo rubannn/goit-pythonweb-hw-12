@@ -11,6 +11,7 @@ from src.api.contacts import router as contacts_router
 from src.api.users import router as users_router
 from src.database.config import settings
 from src.database.db import Base, engine
+from src.services.cache import close_redis_client
 from src.services.rate_limiter import limiter
 
 
@@ -21,6 +22,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    await close_redis_client()
     await engine.dispose()
 
 

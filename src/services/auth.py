@@ -11,6 +11,7 @@ from src.crud.users import get_user_by_email
 from src.database.config import settings
 from src.database.db import get_db
 from src.models.user import User, UserRole
+from src.services.cache import get_cached_user, set_cached_user
 
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
@@ -75,10 +76,15 @@ async def get_current_user(
     except JWTError as exc:
         raise credentials_exception from exc
 
+    cached_user = await get_cached_user(email)
+    if cached_user is not None:
+        return cached_user
+
     user = await get_user_by_email(db, email)
     if user is None:
         raise credentials_exception
 
+    await set_cached_user(user)
     return user
 
 

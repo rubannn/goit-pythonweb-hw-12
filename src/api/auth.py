@@ -11,6 +11,7 @@ from src.services.auth import (
     create_access_token,
     get_password_hash,
 )
+from src.services.cache import invalidate_user_cache, set_cached_user
 from src.services.email import get_email_from_token, send_verification_email
 
 
@@ -58,6 +59,7 @@ async def login_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    await set_cached_user(user)
     access_token = create_access_token(data={"sub": user.email})
     return TokenModel(access_token=access_token)
 
@@ -85,7 +87,9 @@ async def verify_email(
     if user.is_verified:
         return MessageResponse(message="Your email is already verified")
 
-    await confirm_user_email(db, user)
+    user = await confirm_user_email(db, user)
+    await invalidate_user_cache(user.email)
+    await set_cached_user(user)
     return MessageResponse(message="Email verified successfully")
 
 

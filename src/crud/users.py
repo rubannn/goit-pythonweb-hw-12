@@ -39,7 +39,11 @@ async def update_avatar_url(
     user: User,
     avatar_url: str,
 ) -> User:
-    user.avatar_url = avatar_url
+    persistent_user = await db.get(User, user.id)
+    if persistent_user is None:
+        raise ValueError("User not found")
+
+    persistent_user.avatar_url = avatar_url
     await db.commit()
-    await db.refresh(user)
-    return user
+    await db.refresh(persistent_user)
+    return persistent_user

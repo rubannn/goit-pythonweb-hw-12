@@ -7,6 +7,7 @@ from src.database.db import get_db
 from src.models.user import User
 from src.schemas.user import UserResponse
 from src.services.auth import get_current_admin, get_current_user
+from src.services.cache import set_cached_user
 from src.services.cloudinary_service import upload_avatar
 from src.services.rate_limiter import limiter
 
@@ -36,4 +37,5 @@ async def update_user_avatar(
         user=current_user,
         avatar_url=avatar_url,
     )
+    await set_cached_user(user)
     return UserResponse.model_validate(user)
