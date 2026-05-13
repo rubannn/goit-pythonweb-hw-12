@@ -47,3 +47,18 @@ async def update_avatar_url(
     await db.commit()
     await db.refresh(persistent_user)
     return persistent_user
+
+
+async def update_user_password(
+    db: AsyncSession,
+    user: User,
+    hashed_password: str,
+) -> User:
+    persistent_user = await db.get(User, user.id)
+    if persistent_user is None:
+        raise ValueError("User not found")
+
+    persistent_user.hashed_password = hashed_password
+    await db.commit()
+    await db.refresh(persistent_user)
+    return persistent_user

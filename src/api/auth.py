@@ -1,10 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.crud.users import confirm_user_email, create_user, get_user_by_email
+from src.crud.users import (
+    confirm_user_email,
+    create_user,
+    get_user_by_email,
+    update_user_password,
+)
 from src.database.db import get_db
 from src.schemas.base import MessageResponse
-from src.schemas.auth import TokenModel
+from src.schemas.auth import PasswordResetConfirm, PasswordResetRequest, TokenModel
 from src.schemas.user import RequestEmail, UserCreate, UserLogin, UserResponse
 from src.services.auth import (
     authenticate_user,
@@ -12,7 +17,12 @@ from src.services.auth import (
     get_password_hash,
 )
 from src.services.cache import invalidate_user_cache, set_cached_user
-from src.services.email import get_email_from_token, send_verification_email
+from src.services.email import (
+    get_email_from_password_reset_token,
+    get_email_from_token,
+    send_password_reset_email,
+    send_verification_email,
+)
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -110,3 +120,42 @@ async def request_email_verification(
 
     await send_verification_email(user.email, user.username)
     return MessageResponse(message="Verification email sent")
+
+
+@router.post("/request-password-reset", response_model=MessageResponse)
+async def request_password_reset(
+    body: PasswordResetRequest,
+    db: AsyncSession = Depends(get_db),
+) -> MessageResponse:
+    user = await get_user_by_email(db, body.email)
+    if user is not None:
+        await send_password_reset_email(user.email, user.username)
+
+    return MessageResponse(
+        message="If an account with this email exists, a password reset link has been sent",
+    )
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+async def reset_password(
+    body: PasswordResetConfirm,
+    db: AsyncSession = Depends(get_db),
+) -> MessageResponse:
+    try:
+        email = get_email_from_password_reset_token(body.token)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    user = await get_user_by_email(db, email)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid password reset token",
+        )
+
+    await update_user_password(db, user, get_password_hash(body.new_password))
+    await invalidate_user_cache(user.email)
+    return MessageResponse(message="Password has been reset successfully")
